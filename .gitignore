@@ -1,0 +1,6 @@
+/build/
+/cmenos.exe
+/lex.yy.c
+*.o
+*.obj
+.vscode

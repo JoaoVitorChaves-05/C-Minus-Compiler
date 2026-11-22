@@ -1,0 +1,105 @@
+%option noyywrap
+%option yylineno
+
+%{
+#define YY_NO_INPUT
+#define YY_NEVER_INTERACTIVE 1
+#define YY_NO_UNISTD_H
+#include <iostream>
+#include <cstdlib>
+#include <string>
+#include "tokens.hpp"
+
+std::string current_lexeme;
+
+void lexical_error(const std::string& lexeme, int line) {
+    std::cerr << "ERRO LEXICO: " << lexeme << "''\n";
+    std::cerr << "LINHA: " << line << "\n";
+    std::exit(EXIT_FAILURE);
+}
+%}
+
+%x COMMENT
+
+DIGIT       [0-9]
+LETTER      [a-zA-Z]
+ID          {LETTER}+
+NUM         {DIGIT}+
+WHITESPACE  [ \t\r\n]+
+
+%%
+
+"/*"                { BEGIN(COMMENT); }
+<COMMENT>"*/"       { BEGIN(INITIAL); }
+<COMMENT>\n         { /* yylineno atualiza automaticamente */ }
+<COMMENT>.          { /* ignora caracteres dentro de comentarios */ }
+<COMMENT><<EOF>>    { lexical_error("/*", yylineno); }
+
+"else"              { current_lexeme = yytext; return TOKEN_ELSE; }
+"if"                { current_lexeme = yytext; return TOKEN_IF; }
+"int"               { current_lexeme = yytext; return TOKEN_INT; }
+"return"            { current_lexeme = yytext; return TOKEN_RETURN; }
+"void"              { current_lexeme = yytext; return TOKEN_VOID; }
+"while"             { current_lexeme = yytext; return TOKEN_WHILE; }
+
+"+"                 { current_lexeme = yytext; return TOKEN_PLUS; }
+"-"                 { current_lexeme = yytext; return TOKEN_MINUS; }
+"*"                 { current_lexeme = yytext; return TOKEN_TIMES; }
+"/"                 { current_lexeme = yytext; return TOKEN_OVER; }
+"<="                { current_lexeme = yytext; return TOKEN_LE; }
+"<"                 { current_lexeme = yytext; return TOKEN_LT; }
+">="                { current_lexeme = yytext; return TOKEN_GE; }
+">"                 { current_lexeme = yytext; return TOKEN_GT; }
+"=="                { current_lexeme = yytext; return TOKEN_EQ; }
+"!="                { current_lexeme = yytext; return TOKEN_NEQ; }
+"="                 { current_lexeme = yytext; return TOKEN_ASSIGN; }
+";"                 { current_lexeme = yytext; return TOKEN_SEMI; }
+","                 { current_lexeme = yytext; return TOKEN_COMMA; }
+"("                 { current_lexeme = yytext; return TOKEN_LPAREN; }
+")"                 { current_lexeme = yytext; return TOKEN_RPAREN; }
+"["                 { current_lexeme = yytext; return TOKEN_LBRACK; }
+"]"                 { current_lexeme = yytext; return TOKEN_RBRACK; }
+"{"                 { current_lexeme = yytext; return TOKEN_LBRACE; }
+"}"                 { current_lexeme = yytext; return TOKEN_RBRACE; }
+
+{ID}                { current_lexeme = yytext; return TOKEN_ID; }
+{NUM}               { current_lexeme = yytext; return TOKEN_NUM; }
+{WHITESPACE}        { /* ignora espacos, tabulacoes e quebras de linha */ }
+
+.                   { lexical_error(yytext, yylineno); }
+
+%%
+
+const char* token_name(int token) {
+    switch (token) {
+        case TOKEN_EOF:    return "EOF";
+        case TOKEN_ELSE:   return "ELSE";
+        case TOKEN_IF:     return "IF";
+        case TOKEN_INT:    return "INT";
+        case TOKEN_RETURN: return "RETURN";
+        case TOKEN_VOID:   return "VOID";
+        case TOKEN_WHILE:  return "WHILE";
+        case TOKEN_ID:     return "ID";
+        case TOKEN_NUM:    return "NUM";
+        case TOKEN_PLUS:   return "PLUS";
+        case TOKEN_MINUS:  return "MINUS";
+        case TOKEN_TIMES:  return "TIMES";
+        case TOKEN_OVER:   return "OVER";
+        case TOKEN_LT:     return "LT";
+        case TOKEN_LE:     return "LE";
+        case TOKEN_GT:     return "GT";
+        case TOKEN_GE:     return "GE";
+        case TOKEN_EQ:     return "EQ";
+        case TOKEN_NEQ:    return "NEQ";
+        case TOKEN_ASSIGN: return "ASSIGN";
+        case TOKEN_SEMI:   return "SEMI";
+        case TOKEN_COMMA:  return "COMMA";
+        case TOKEN_LPAREN: return "LPAREN";
+        case TOKEN_RPAREN: return "RPAREN";
+        case TOKEN_LBRACK: return "LBRACK";
+        case TOKEN_RBRACK: return "RBRACK";
+        case TOKEN_LBRACE: return "LBRACE";
+        case TOKEN_RBRACE: return "RBRACE";
+        default:         return "UNKNOWN";
+    }
+}
