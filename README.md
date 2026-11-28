@@ -24,17 +24,17 @@ C-Minus-Compiler/
 |-- Makefile
 |-- README.md
 |-- include/
-|   |-- ast.hpp
-|   |-- semantic.hpp
-|   |-- symtab.hpp
-|   `-- tokens.hpp
+|   |-- ast.h
+|   |-- semantic.h
+|   |-- symtab.h
+|   `-- tokens.h
 |-- src/
-|   |-- main.cpp
+|   |-- main.c
 |   |-- scanner.lx
 |   |-- parser.y
-|   |-- ast.cpp
-|   |-- semantic.cpp
-|   `-- symtab.cpp
+|   |-- ast.c
+|   |-- semantic.c
+|   `-- symtab.c
 |-- tests/
 |   |-- gcd.cm
 |   |-- erro_lexico.cm
@@ -51,10 +51,10 @@ C-Minus-Compiler/
 ## Requisitos
 
 - Windows;
-- MSYS2/MinGW-w64 com `g++ 16.2.0` ou compatível;
+- MSYS2/MinGW-w64 com `gcc` compatível com C11;
 - Flex 2.5.4;
 - `mingw32-make 4.4.1` ou compatível;
-- C++17.
+- C11.
 
 No ambiente atual, o Flex configurado no Makefile está em:
 

@@ -8,7 +8,7 @@ Este documento define o contexto do projeto, os requisitos da especificação ac
 
 - **Disciplina:** Compiladores — UNIFESP
 - **Docente:** Prof. Dr. Rodrigo Colnago Contreras
-- **Objetivo:** Implementar um compilador funcional em **C++** para a linguagem didática **C-**, seguindo rigorosamente a especificação do **Apêndice A** do livro *Compiler Construction: Principles and Practice* (Kenneth C. Louden, 1997).
+- **Objetivo:** Implementar um compilador funcional em **C** para a linguagem didática **C-**, seguindo rigorosamente a especificação do **Apêndice A** do livro *Compiler Construction: Principles and Practice* (Kenneth C. Louden, 1997).
 - **Diretório do Projeto:** `D:\Faculdade\Compiladores\C-Minus-Compiler`
 - **Restrições Acadêmicas:**
   - Todo o código-fonte deve ser de autoria própria do grupo (o esqueleto de arquivos de Louden serve apenas como referência didática).
@@ -23,7 +23,7 @@ O desenvolvimento ocorre em **Windows** utilizando **PowerShell** e ferramentas 
 | Ferramenta | Caminho / Origem | Versão Instalada | Observações Críticas de Compatibilidade |
 | :--- | :--- | :--- | :--- |
 | **Sistema / Shell** | Windows (PowerShell) | — | Caminhos usam `\` no Windows; evitar comandos exclusivos de bash/POSIX nos scripts de build. |
-| **Compilador C++** | MSYS2 (`x86_64-w64-mingw32`) | `g++ 16.2.0` | Suporta C++17/C++20 moderno (`-std=c++17`). |
+| **Compilador C** | MSYS2 (`x86_64-w64-mingw32`) | GCC | Compilar em C11 (`-std=c11`). |
 | **Scanner** | `D:\Faculdade\Compiladores\GnuWin32\bin\flex.exe` | `flex 2.5.4` | **Versão legada (2.5.4).** Ver regras de compatibilidade abaixo. |
 | **Parser** | `D:\Faculdade\Compiladores\GnuWin32\bin\bison.exe` | `bison 2.4.1` | **Versão legada (2.4.1).** Ver regras de compatibilidade abaixo. |
 | **Automação Build** | `mingw32-make` (`x86_64-w64-mingw32`) | `GNU Make 4.4.1` | Invocar sempre via `mingw32-make`. |
@@ -33,15 +33,15 @@ O desenvolvimento ocorre em **Windows** utilizando **PowerShell** e ferramentas 
 Como as versões do Flex e do Bison instaladas via GnuWin32 são anteriores às séries 2.6+ e 3.x+, **não utilize diretivas modernas** que causam erro de sintaxe nesses geradores:
 
 1. **Regras para o Flex (`2.5.4`):**
-   - **NÃO usar** `%option never-interactive` (inexistente na 2.5.4). Em vez disso, definir `#define YY_NEVER_INTERACTIVE 1` dentro do bloco `%{ ... %}` do `.l`.
+   - **NÃO usar** `%option never-interactive` (inexistente na 2.5.4). Em vez disso, definir `#define YY_NEVER_INTERACTIVE 1` dentro do bloco `%{ ... %}` do `.lx`.
    - **NÃO usar** `%option nounput` ou `%option noinput` caso gerem aviso de opção desconhecida; se necessário, suprimir via pragmas ou definições `#define YY_NO_INPUT`.
    - Usar `%option noyywrap` e `%option yylineno` (suportados na 2.5.4).
-   - Definir `#define YY_NO_UNISTD_H` se houver conflito com cabeçalhos POSIX no modo C++.
+   - Definir `#define YY_NO_UNISTD_H` se houver conflito com cabeçalhos POSIX no Windows.
 
 2. **Regras para o Bison (`2.4.1`):**
-   - **NÃO usar** diretivas do Bison 3.x como `%define api.value.type`, `%define parse.error verbose` ou variantes C++ (`%skeleton "lalr1.cc"`).
-   - Utilizar a abordagem clássica compatível com C++: `%union { ... }`, `%error-verbose`, e geração de cabeçalho via flag `-d` (`bison -d -o build/parser.tab.cpp src/parser.y`).
-   - Declarar `extern int yylex();` e `void yyerror(const char* s);` explicitamente no `.y`.
+   - **NÃO usar** diretivas do Bison 3.x como `%define api.value.type` ou `%define parse.error verbose`.
+   - Utilizar a abordagem clássica compatível com C: `%union { ... }`, `%error-verbose`, e geração de cabeçalho via flag `-d` (`bison -d -o build/parser.tab.c src/parser.y`).
+   - Declarar `extern int yylex(void);` e `void yyerror(const char* s);` explicitamente no `.y`.
 
 ---
 
@@ -51,17 +51,17 @@ O compilador deve operar em pipeline sequencial e estruturar-se nos seguintes m�
 
 ```text
 C-Minus-Compiler/
-├── include/            # Cabeçalhos (.hpp) de AST, Tabela de Símbolos, Semântico e CodeGen
+├── include/            # Cabeçalhos (.h) de AST, Tabela de Símbolos, Semântico e CodeGen
 ├── src/
-│   ├── main.cpp        # Ponto de entrada, leitura do arquivo .cm e orquestração das fases
-│   ├── scanner.l       # Especificação léxica (Flex 2.5.4)
+│   ├── main.c          # Ponto de entrada, leitura do arquivo .cm e orquestração das fases
+│   ├── scanner.lx      # Especificação léxica (Flex 2.5.4)
 │   ├── parser.y        # Gramática C-, recuperação de erros e construção da AST (Bison 2.4.1)
-│   ├── ast.cpp         # Estruturas de nós da AST, impressão textual e/ou exportação .dot
-│   ├── symtab.cpp      # Tabela de Símbolos (hash table + pilha de escopos ou equivalente)
-│   ├── semantic.cpp    # Análise semântica sobre a AST
-│   └── codegen.cpp     # Geração de código intermediário em 3 endereços
+│   ├── ast.c           # Estruturas de nós da AST, impressão textual e/ou exportação .dot
+│   ├── symtab.c        # Tabela de Símbolos (hash table + pilha de escopos ou equivalente)
+│   ├── semantic.c      # Análise semântica sobre a AST
+│   └── codegen.c       # Geração de código intermediário em 3 endereços
 ├── tests/              # Programas de teste em C- (casos válidos e casos de erro)
-├── build/              # Arquivos intermediários gerados (.cpp/.hpp do Flex/Bison e objetos)
+├── build/              # Arquivos intermediários gerados (.c/.h do Flex/Bison e objetos)
 ├── Makefile            # Script de compilação para mingw32-make
 ├── README.md           # Instruções de compilação e execução
 └── AGENTS.md           # Este arquivo de contexto
@@ -138,4 +138,4 @@ Para programas sem erros impeditivos, o compilador deve imprimir ao final da exe
 | Apresentação e domínio do projeto | 2,0 |
 | **Total** | **10,0** |
 
-**Entregáveis Finais:** Código-fonte completo em C++, `Makefile`, `README.md`, exemplos de teste em C- e relatório técnico detalhando o projeto e a participação individual de cada integrante.
+**Entregáveis Finais:** Código-fonte completo em C, `Makefile`, `README.md`, exemplos de teste em C- e relatório técnico detalhando o projeto e a participação individual de cada integrante.
