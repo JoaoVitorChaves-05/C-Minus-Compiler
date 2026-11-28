@@ -11,11 +11,20 @@ O projeto já implementa:
 - Construção e impressão textual da AST, além da exportação opcional em Graphviz;
 - Tabela de símbolos com escopos aninhados e análise semântica de declarações, usos, tipos, chamadas e retornos;
 - Geração de código intermediário em quádruplas para funções, expressões, chamadas, vetores e controle de fluxo;
+- Tradução das quádruplas para instruções da Tiny Machine clássica de Louden, com endereços numéricos, chamadas recursivas, vetores, desvios e I/O;
 - Funções predefinidas `input()` e `output(int)`;
 - Resolução do `else` associado ao `if` mais próximo;
 - Build para Windows com `mingw32-make`.
 
-Ainda falta a tradução do código intermediário para instruções da Tiny Machine.
+O backend TM é emitido após as quádruplas. Ele usa `r5` como GP, `r6` como FP,
+`r7` como PC e `r0`/`r1`/`r2` como acumuladores temporários. O simulador deve
+iniciar a memória de dados zerada e definir `dMem[0]` com o
+maior endereço da memória de dados (como no simulador TM de Louden); globais
+ficam em offsets positivos de GP e os frames crescem para
+endereços menores a partir de FP. Cada frame reserva os slots `-1(FP)` para o
+FP anterior e `-2(FP)` para o endereço de retorno; parâmetros, variáveis,
+vetores e temporários ocupam os slots seguintes. Os vetores locais são contíguos
+e vetores passados como parâmetro carregam o endereço-base.
 
 ## Estrutura
 
@@ -29,6 +38,7 @@ C-Minus-Compiler/
 |   |-- semantic.h
 |   |-- symtab.h
 |   |-- gci.h
+|   |-- tm_codegen.h
 |   `-- tokens.h
 |-- src/
 |   |-- main.c
@@ -37,7 +47,8 @@ C-Minus-Compiler/
 |   |-- ast.c
 |   |-- semantic.c
 |   |-- symtab.c
-|   `-- gci.c
+|   |-- gci.c
+|   `-- tm_codegen.c
 |-- tests/
 |   |-- gcd.cm
 |   |-- erro_lexico.cm
@@ -48,7 +59,8 @@ C-Minus-Compiler/
 |   |-- escopos_semanticos.cm
 |   |-- erro_semantico.cm
 |   |-- erro_semantico_main.cm
-|   `-- gci_arrays_calls.cm
+|   |-- gci_arrays_calls.cm
+|   `-- tm_recursion_arrays.cm
 `-- build/
 ```
 
@@ -117,6 +129,14 @@ Para verificar escopos, chamadas de função e análise semântica:
 .\cmenos.exe .\tests\erro_semantico.cm
 .\cmenos.exe .\tests\erro_semantico_main.cm
 ```
+
+Para verificar a geração TM com recursão, vetores como parâmetros e shadowing:
+
+```powershell
+.\cmenos.exe .\tests\tm_recursion_arrays.cm
+```
+
+O programa imprime as quádruplas e, em seguida, as instruções TM numeradas.
 
 ## Tokens reconhecidos
 

@@ -5,8 +5,18 @@
 #include <string.h>
 
 typedef struct {
+    const char *source_name;
+    char *ir_name;
+    int is_array;
+} Binding;
+
+typedef struct {
     GCI *output;
     ASTNode *program;
+    Binding *bindings;
+    size_t binding_count;
+    size_t binding_capacity;
+    size_t next_symbol;
     size_t next_temp;
     size_t next_label;
     int failed;
@@ -27,6 +37,107 @@ static char *copy_string(const char *text) {
     if (!copy) return NULL;
     memcpy(copy, text, length);
     return copy;
+}
+
+static void pop_bindings(Generator *generator, size_t count) {
+    while (generator->binding_count > count) {
+        free(generator->bindings[--generator->binding_count].ir_name);
+    }
+}
+
+static int add_binding(
+    Generator *generator,
+    const char *source_name,
+    int is_array,
+    const char **ir_name
+) {
+    Binding *resized;
+    Binding *binding;
+    size_t capacity;
+    char buffer[48];
+
+    if (generator->binding_count == generator->binding_capacity) {
+        if (generator->binding_capacity > (size_t)-1 / 2) {
+            generator->failed = 1;
+            return 0;
+        }
+        capacity = generator->binding_capacity
+            ? generator->binding_capacity * 2
+            : 16;
+        if (capacity > (size_t)-1 / sizeof(Binding)) {
+            generator->failed = 1;
+            return 0;
+        }
+        resized = (Binding *)realloc(
+            generator->bindings, capacity * sizeof(Binding)
+        );
+        if (!resized) {
+            generator->failed = 1;
+            return 0;
+        }
+        generator->bindings = resized;
+        generator->binding_capacity = capacity;
+    }
+
+    snprintf(buffer, sizeof(buffer), "$v%zu", generator->next_symbol++);
+    binding = &generator->bindings[generator->binding_count];
+    binding->source_name = source_name;
+    binding->ir_name = copy_string(buffer);
+    binding->is_array = is_array;
+    if (!binding->ir_name) {
+        generator->failed = 1;
+        return 0;
+    }
+    ++generator->binding_count;
+    *ir_name = binding->ir_name;
+    return 1;
+}
+
+static const Binding *find_binding(
+    const Generator *generator,
+    const char *source_name
+) {
+    size_t index = generator->binding_count;
+    while (index > 0) {
+        const Binding *binding = &generator->bindings[--index];
+        if (strcmp(binding->source_name, source_name) == 0) return binding;
+    }
+    return NULL;
+}
+
+static const char *resolve_name(
+    Generator *generator,
+    const char *source_name
+) {
+    const Binding *binding = find_binding(generator, source_name);
+    if (!binding) {
+        generator->failed = 1;
+        return NULL;
+    }
+    return binding->ir_name;
+}
+
+static char *array_address_operand(
+    Generator *generator,
+    const char *source_name
+) {
+    const Binding *binding = find_binding(generator, source_name);
+    char *address;
+    size_t name_length;
+    if (!binding) {
+        generator->failed = 1;
+        return NULL;
+    }
+    if (!binding->is_array) return copy_string(binding->ir_name);
+    name_length = strlen(binding->ir_name);
+    address = (char *)malloc(name_length + 2);
+    if (!address) {
+        generator->failed = 1;
+        return NULL;
+    }
+    address[0] = '&';
+    memcpy(address + 1, binding->ir_name, name_length + 1);
+    return address;
 }
 
 static void free_quad(Quad *quad) {
@@ -142,12 +253,13 @@ static int generate_lvalue(
     }
 
     if (node->kind == NODE_VAR_EXPR && node->name) {
-        lvalue->name = node->name;
-        return 1;
+        lvalue->name = resolve_name(generator, node->name);
+        return lvalue->name != NULL;
     }
 
     if (node->kind == NODE_ARRAY_EXPR && node->name) {
-        lvalue->name = node->name;
+        lvalue->name = resolve_name(generator, node->name);
+        if (!lvalue->name) return 0;
         lvalue->index = generate_expression(generator, ast_child(node, 0));
         if (!lvalue->index || generator->failed) {
             free(lvalue->index);
@@ -186,6 +298,18 @@ static char *generate_call(Generator *generator, ASTNode *node) {
         if (!value || generator->failed) {
             free(value);
             goto cleanup;
+        }
+        if (argument->kind == NODE_VAR_EXPR && value[0] != '&') {
+            char *snapshot = new_temp(generator);
+            if (!snapshot ||
+                !emit(generator, "=", value, "-", snapshot)) {
+                free(snapshot);
+                free(value);
+                generator->failed = 1;
+                goto cleanup;
+            }
+            free(value);
+            value = snapshot;
         }
         if (argument_count == argument_capacity) {
             size_t new_capacity;
@@ -272,21 +396,26 @@ static char *generate_expression(Generator *generator, ASTNode *node) {
         }
 
         case NODE_VAR_EXPR:
-            result = node->name ? copy_string(node->name) : NULL;
-            if (!result) generator->failed = 1;
-            return result;
+            if (!node->name) {
+                generator->failed = 1;
+                return NULL;
+            }
+            return array_address_operand(generator, node->name);
 
         case NODE_ARRAY_EXPR: {
             char *index = generate_expression(generator, ast_child(node, 0));
             char *temporary;
-            if (!index || !node->name || generator->failed) {
+            const char *array_name = node->name
+                ? resolve_name(generator, node->name)
+                : NULL;
+            if (!index || !array_name || generator->failed) {
                 free(index);
                 generator->failed = 1;
                 return NULL;
             }
             temporary = new_temp(generator);
             if (!temporary ||
-                !emit(generator, "[]", node->name, index, temporary)) {
+                !emit(generator, "[]", array_name, index, temporary)) {
                 free(index);
                 free(temporary);
                 generator->failed = 1;
@@ -362,20 +491,40 @@ static char *generate_expression(Generator *generator, ASTNode *node) {
 static int generate_declaration(
     Generator *generator,
     ASTNode *declaration,
-    const char *scope
+    const char *scope,
+    int is_global
 ) {
     char size_text[48];
-    if (declaration->kind == NODE_VAR_DECL && declaration->name) {
-        return emit(generator, "ALLOC", declaration->name, scope, "-");
+    const char *ir_name;
+    int is_array;
+    if (!declaration || !declaration->name) {
+        generator->failed = 1;
+        return 0;
     }
-    if (declaration->kind == NODE_ARRAY_DECL && declaration->name) {
+    if (declaration->kind == NODE_VAR_DECL) {
+        is_array = 0;
+    } else if (declaration->kind == NODE_ARRAY_DECL) {
+        is_array = 1;
+    } else {
+        generator->failed = 1;
+        return 0;
+    }
+
+    if (is_global) {
+        ir_name = resolve_name(generator, declaration->name);
+    } else if (!add_binding(generator, declaration->name, is_array, &ir_name)) {
+        return 0;
+    }
+    if (!ir_name) return 0;
+
+    if (!is_array) {
+        return emit(generator, "ALLOC", ir_name, scope, "-");
+    } else {
         snprintf(size_text, sizeof(size_text), "%d", declaration->value);
         return emit(
-            generator, "ALLOC_ARRAY", declaration->name, size_text, scope
+            generator, "ALLOC_ARRAY", ir_name, size_text, scope
         );
     }
-    generator->failed = 1;
-    return 0;
 }
 
 static int generate_statement(Generator *generator, ASTNode *statement,
@@ -392,6 +541,8 @@ static int generate_statement_list(Generator *generator, ASTNode *statement,
 static int generate_compound(Generator *generator, ASTNode *compound,
                              const char *scope) {
     ASTNode *declaration;
+    size_t binding_mark = generator->binding_count;
+    int success = 1;
     if (!compound || compound->kind != NODE_COMPOUND_STMT) {
         generator->failed = 1;
         return 0;
@@ -399,11 +550,18 @@ static int generate_compound(Generator *generator, ASTNode *compound,
 
     for (declaration = ast_child(compound, 0); declaration;
          declaration = declaration->sibling) {
-        if (!generate_declaration(generator, declaration, scope)) return 0;
+        if (!generate_declaration(generator, declaration, scope, 0)) {
+            success = 0;
+            break;
+        }
     }
-    return generate_statement_list(
-        generator, ast_child(compound, 1), scope
-    );
+    if (success) {
+        success = generate_statement_list(
+            generator, ast_child(compound, 1), scope
+        );
+    }
+    pop_bindings(generator, binding_mark);
+    return success;
 }
 
 static int generate_statement(Generator *generator, ASTNode *statement,
@@ -534,6 +692,8 @@ static int generate_statement(Generator *generator, ASTNode *statement,
 static int generate_function(Generator *generator, ASTNode *function) {
     ASTNode *parameter;
     ASTNode *body = ast_child(function, 1);
+    size_t binding_mark = generator->binding_count;
+    int success = 1;
     if (!function->name ||
         !emit(generator,
               "FUN",
@@ -546,26 +706,32 @@ static int generate_function(Generator *generator, ASTNode *function) {
 
     for (parameter = ast_child(function, 0); parameter;
          parameter = parameter->sibling) {
+        const char *ir_name;
+        int is_array = parameter->kind == NODE_PARAM_ARRAY;
         if (!parameter->name ||
+            !add_binding(generator, parameter->name, is_array, &ir_name) ||
             !emit(generator,
-                  "ARG",
+                  is_array ? "ARG_ARRAY" : "ARG",
                   parameter->type == DATA_INT ? "int" : "void",
-                  parameter->name,
+                  ir_name,
                   function->name)) {
             generator->failed = 1;
-            return 0;
+            success = 0;
+            break;
         }
     }
 
-    if (!generate_compound(generator, body, function->name) ||
-        !emit(generator, "END", function->name, "-", "-")) {
-        return 0;
+    if (success) {
+        success = generate_compound(generator, body, function->name);
     }
-    if (strcmp(function->name, "main") == 0 &&
-        !emit(generator, "HALT", "-", "-", "-")) {
-        return 0;
+    if (success) {
+        success = emit(generator, "END", function->name, "-", "-");
     }
-    return 1;
+    if (success && strcmp(function->name, "main") == 0) {
+        success = emit(generator, "HALT", "-", "-", "-");
+    }
+    pop_bindings(generator, binding_mark);
+    return success;
 }
 
 int generate_quads(ASTNode *root, GCI *gci) {
@@ -591,17 +757,47 @@ int generate_quads(ASTNode *root, GCI *gci) {
     }
 
     for (declaration = root; declaration; declaration = declaration->sibling) {
+        if (declaration->kind == NODE_VAR_DECL ||
+            declaration->kind == NODE_ARRAY_DECL) {
+            const char *ir_name;
+            if (!declaration->name) {
+                generator.failed = 1;
+                break;
+            }
+            if (!add_binding(
+                    &generator,
+                    declaration->name,
+                    declaration->kind == NODE_ARRAY_DECL,
+                    &ir_name)) {
+                break;
+            }
+        }
+    }
+    if (generator.failed) {
+        pop_bindings(&generator, 0);
+        free(generator.bindings);
+        clear_quads(gci);
+        return 0;
+    }
+
+    for (declaration = root; declaration; declaration = declaration->sibling) {
         int success;
         if (declaration->kind == NODE_FUN_DECL) {
             success = generate_function(&generator, declaration);
         } else {
-            success = generate_declaration(&generator, declaration, "global");
+            success = generate_declaration(
+                &generator, declaration, "global", 1
+            );
         }
         if (!success || generator.failed) {
+            pop_bindings(&generator, 0);
+            free(generator.bindings);
             clear_quads(gci);
             return 0;
         }
     }
+    pop_bindings(&generator, 0);
+    free(generator.bindings);
     return 1;
 }
 

@@ -5,6 +5,7 @@
 #include "gci.h"
 #include "semantic.h"
 #include "symtab.h"
+#include "tm_codegen.h"
 #include "tokens.h"
 
 extern int yyparse(void);
@@ -70,6 +71,15 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
     print_quads(stdout, &gci);
+
+    fputs("\n=== CODIGO TINY MACHINE ===\n", stdout);
+    if (!generate_tm(stdout, &gci)) {
+        fputs("Erro: nao foi possivel gerar o codigo da Tiny Machine.\n", stderr);
+        clear_quads(&gci);
+        symbol_table_destroy(&symbols);
+        free_ast(ast_root);
+        return EXIT_FAILURE;
+    }
     clear_quads(&gci);
 
     if (!export_ast_dot(ast_root, "ast.dot")) {

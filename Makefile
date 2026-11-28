@@ -14,7 +14,7 @@ YACC_GEN_H = $(BUILD_DIR)/parser.tab.h
 LEX_SRC = $(SRC_DIR)/scanner.lx
 LEX_GEN_C = $(BUILD_DIR)/lex.yy.c
 
-C_SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/ast.c $(SRC_DIR)/symtab.c $(SRC_DIR)/semantic.c $(SRC_DIR)/gci.c
+C_SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/ast.c $(SRC_DIR)/symtab.c $(SRC_DIR)/semantic.c $(SRC_DIR)/gci.c $(SRC_DIR)/tm_codegen.c
 
 all: $(TARGET)
 

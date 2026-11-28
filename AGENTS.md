@@ -51,7 +51,7 @@ O compilador deve operar em pipeline sequencial e estruturar-se nos seguintes m�
 
 ```text
 C-Minus-Compiler/
-├── include/            # Cabeçalhos (.h) de AST, Tabela de Símbolos, Semântico e GCI
+├── include/            # Cabeçalhos (.h) de AST, Tabela de Símbolos, Semântico, GCI e TM
 ├── src/
 │   ├── main.c          # Ponto de entrada, leitura do arquivo .cm e orquestração das fases
 │   ├── scanner.lx      # Especificação léxica (Flex 2.5.4)
@@ -59,7 +59,8 @@ C-Minus-Compiler/
 │   ├── ast.c           # Estruturas de nós da AST, impressão textual e/ou exportação .dot
 │   ├── symtab.c        # Tabela de Símbolos (hash table + pilha de escopos ou equivalente)
 │   ├── semantic.c      # Análise semântica sobre a AST
-│   └── gci.c           # Geração de código intermediário em quádruplas
+│   ├── gci.c           # Geração de código intermediário em quádruplas
+│   └── tm_codegen.c    # Tradução das quádruplas para Tiny Machine
 ├── tests/              # Programas de teste em C- (casos válidos e casos de erro)
 ├── build/              # Arquivos intermediários gerados (.c/.h do Flex/Bison e objetos)
 ├── Makefile            # Script de compilação para mingw32-make
@@ -92,6 +93,12 @@ C-Minus-Compiler/
 
 5. **Gerador de Código Intermediário (3 Endereços):**
    - Linearizar a AST gerando código de três endereços **sem otimizações** (ex.: `t1 = a + b`, `t2 = t1 * c`, `output t2`, rótulos e desvios condicionais/incondicionais para `if` e `while`).
+
+6. **Backend Tiny Machine (Louden):**
+   - Emitir instruções TM numeradas, usando os formatos RR (`ADD r,s,t`) e RM (`LD r,d(s)`, `JLT r,d(7)`).
+   - Reservar `r5` para GP, `r6` para FP e `r7` para PC; iniciar a memória de dados zerada, com `dMem[0]` igual ao endereço máximo.
+   - Usar offsets positivos a partir de GP para globais e frames descendentes a partir de FP, preservando FP e PC de retorno em `-1(FP)` e `-2(FP)`.
+   - Suportar recursão, parâmetros-array, arrays locais/globais, chamadas, I/O e desvios; manter a GCI como representação intermediária anterior à TM.
 
 ---
 
