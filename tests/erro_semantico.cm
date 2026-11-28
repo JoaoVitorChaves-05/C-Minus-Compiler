@@ -1,0 +1,11 @@
+int add(int left, int right)
+{
+    return left + right;
+}
+
+void main(void)
+{
+    int data[2];
+    int data;
+    output(add(data, missing));
+}

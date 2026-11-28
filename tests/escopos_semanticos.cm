@@ -1,0 +1,21 @@
+int value;
+
+int later(void)
+{
+    return 1;
+}
+
+int first(void)
+{
+    return later();
+}
+
+void main(void)
+{
+    int value;
+    {
+        int value;
+        value = first();
+    }
+    value = first();
+}

@@ -9,10 +9,12 @@ O projeto já implementa:
 - Scanner em Flex, incluindo comentários de bloco e localização de erros léxicos;
 - Parser em Bison com recuperação de erros sintáticos;
 - Construção e impressão textual da AST, além da exportação opcional em Graphviz;
+- Tabela de símbolos com escopos aninhados e análise semântica de declarações, usos, tipos, chamadas e retornos;
+- Funções predefinidas `input()` e `output(int)`;
 - Resolução do `else` associado ao `if` mais próximo;
 - Build para Windows com `mingw32-make`.
 
-Ainda faltam a tabela de símbolos, a análise semântica e a geração de código intermediário.
+Ainda falta a geração de código intermediário.
 
 ## Estrutura
 
@@ -23,19 +25,26 @@ C-Minus-Compiler/
 |-- README.md
 |-- include/
 |   |-- ast.hpp
+|   |-- semantic.hpp
+|   |-- symtab.hpp
 |   `-- tokens.hpp
 |-- src/
 |   |-- main.cpp
 |   |-- scanner.lx
 |   |-- parser.y
-|   `-- ast.cpp
+|   |-- ast.cpp
+|   |-- semantic.cpp
+|   `-- symtab.cpp
 |-- tests/
 |   |-- gcd.cm
 |   |-- erro_lexico.cm
 |   |-- erro_lexico_linha_comentario.cm
 |   |-- dangling_else.cm
 |   |-- erro_sintatico_recuperacao.cm
-|   `-- erro_sintatico_eof.cm
+|   |-- erro_sintatico_eof.cm
+|   |-- escopos_semanticos.cm
+|   |-- erro_semantico.cm
+|   `-- erro_semantico_main.cm
 `-- build/
 ```
 
@@ -95,6 +104,14 @@ Para verificar a recuperação de erros sintáticos:
 ```powershell
 .\cmenos.exe .\tests\erro_sintatico_recuperacao.cm
 .\cmenos.exe .\tests\erro_sintatico_eof.cm
+```
+
+Para verificar escopos, chamadas de função e análise semântica:
+
+```powershell
+.\cmenos.exe .\tests\escopos_semanticos.cm
+.\cmenos.exe .\tests\erro_semantico.cm
+.\cmenos.exe .\tests\erro_semantico_main.cm
 ```
 
 ## Tokens reconhecidos
