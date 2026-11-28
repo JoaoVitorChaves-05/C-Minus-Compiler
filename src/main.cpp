@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdio>
 #include "ast.hpp"
+#include "semantic.hpp"
 
 extern FILE* yyin;
 extern int yyparse();
@@ -29,6 +30,15 @@ int main(int argc, char* argv[]) {
         free_ast(ast_root);
         return 1;
     }
+
+    SymbolTable symbols;
+    if (!analyze_semantics(ast_root, symbols)) {
+        free_ast(ast_root);
+        return 1;
+    }
+
+    std::cout << "=== TABELA DE SIMBOLOS ===\n";
+    symbols.print(std::cout);
 
     std::cout << "=== ARVORE SINTATICA ABSTRATA (AST) ===\n";
     printTree(ast_root);

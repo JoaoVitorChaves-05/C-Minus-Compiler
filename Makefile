@@ -14,7 +14,7 @@ YACC_GEN_HPP = $(BUILD_DIR)/parser.tab.hpp
 LEX_SRC = $(SRC_DIR)/scanner.lx
 LEX_GEN = $(BUILD_DIR)/lex.yy.cpp
 
-CPP_SRCS = $(SRC_DIR)/main.cpp $(SRC_DIR)/ast.cpp
+CPP_SRCS = $(SRC_DIR)/main.cpp $(SRC_DIR)/ast.cpp $(SRC_DIR)/symtab.cpp $(SRC_DIR)/semantic.cpp
 
 all: $(TARGET)
 
