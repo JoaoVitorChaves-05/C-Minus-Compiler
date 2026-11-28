@@ -7,10 +7,25 @@
 #define YY_NO_UNISTD_H
 #include <iostream>
 #include <cstdlib>
+#include <cstring>
 #include <string>
+#include "ast.hpp"
+#include "parser.tab.hpp"
 #include "tokens.hpp"
 
-std::string current_lexeme;
+#define YY_USER_ACTION \
+    yylloc.first_line = yylineno; \
+    yylloc.last_line = yylineno; \
+    yylloc.first_column = 1; \
+    yylloc.last_column = yyleng;
+
+static int comment_start_line = 1;
+
+static char* copy_lexeme(const char* text) {
+    char* dup = static_cast<char*>(std::malloc(std::strlen(text) + 1));
+    if (dup) std::strcpy(dup, text);
+    return dup;
+}
 
 void lexical_error(const std::string& lexeme, int line) {
     std::cerr << "ERRO LEXICO: " << lexeme << "''\n";
@@ -29,77 +44,82 @@ WHITESPACE  [ \t\r\n]+
 
 %%
 
-"/*"                { BEGIN(COMMENT); }
+"/*"                { comment_start_line = yylineno; BEGIN(COMMENT); }
 <COMMENT>"*/"       { BEGIN(INITIAL); }
 <COMMENT>\n         { /* yylineno atualiza automaticamente */ }
 <COMMENT>.          { /* ignora caracteres dentro de comentarios */ }
-<COMMENT><<EOF>>    { lexical_error("/*", yylineno); }
+<COMMENT><<EOF>>    { lexical_error("/*", comment_start_line); }
 
-"else"              { current_lexeme = yytext; return TOKEN_ELSE; }
-"if"                { current_lexeme = yytext; return TOKEN_IF; }
-"int"               { current_lexeme = yytext; return TOKEN_INT; }
-"return"            { current_lexeme = yytext; return TOKEN_RETURN; }
-"void"              { current_lexeme = yytext; return TOKEN_VOID; }
-"while"             { current_lexeme = yytext; return TOKEN_WHILE; }
+"else"              { return ELSE; }
+"if"                { return IF; }
+"int"               { return INT; }
+"return"            { return RETURN; }
+"void"              { return VOID; }
+"while"             { return WHILE; }
 
-"+"                 { current_lexeme = yytext; return TOKEN_PLUS; }
-"-"                 { current_lexeme = yytext; return TOKEN_MINUS; }
-"*"                 { current_lexeme = yytext; return TOKEN_TIMES; }
-"/"                 { current_lexeme = yytext; return TOKEN_OVER; }
-"<="                { current_lexeme = yytext; return TOKEN_LE; }
-"<"                 { current_lexeme = yytext; return TOKEN_LT; }
-">="                { current_lexeme = yytext; return TOKEN_GE; }
-">"                 { current_lexeme = yytext; return TOKEN_GT; }
-"=="                { current_lexeme = yytext; return TOKEN_EQ; }
-"!="                { current_lexeme = yytext; return TOKEN_NEQ; }
-"="                 { current_lexeme = yytext; return TOKEN_ASSIGN; }
-";"                 { current_lexeme = yytext; return TOKEN_SEMI; }
-","                 { current_lexeme = yytext; return TOKEN_COMMA; }
-"("                 { current_lexeme = yytext; return TOKEN_LPAREN; }
-")"                 { current_lexeme = yytext; return TOKEN_RPAREN; }
-"["                 { current_lexeme = yytext; return TOKEN_LBRACK; }
-"]"                 { current_lexeme = yytext; return TOKEN_RBRACK; }
-"{"                 { current_lexeme = yytext; return TOKEN_LBRACE; }
-"}"                 { current_lexeme = yytext; return TOKEN_RBRACE; }
+"+"                 { return PLUS; }
+"-"                 { return MINUS; }
+"*"                 { return TIMES; }
+"/"                 { return OVER; }
+"<="                { return LE; }
+"<"                 { return LT; }
+">="                { return GE; }
+">"                 { return GT; }
+"=="                { return EQ; }
+"!="                { return NEQ; }
+"="                 { return ASSIGN; }
+";"                 { return SEMI; }
+","                 { return COMMA; }
+"("                 { return LPAREN; }
+")"                 { return RPAREN; }
+"["                 { return LBRACK; }
+"]"                 { return RBRACK; }
+"{"                 { return LBRACE; }
+"}"                 { return RBRACE; }
 
-{ID}                { current_lexeme = yytext; return TOKEN_ID; }
-{NUM}               { current_lexeme = yytext; return TOKEN_NUM; }
+{ID}                { yylval.str_val = copy_lexeme(yytext); return ID; }
+{NUM}               { yylval.int_val = std::atoi(yytext); return NUM; }
 {WHITESPACE}        { /* ignora espacos, tabulacoes e quebras de linha */ }
 
 .                   { lexical_error(yytext, yylineno); }
+<<EOF>>             {
+                        yylloc.first_line = yylineno;
+                        yylloc.last_line = yylineno;
+                        return 0;
+                    }
 
 %%
 
 const char* token_name(int token) {
     switch (token) {
-        case TOKEN_EOF:    return "EOF";
-        case TOKEN_ELSE:   return "ELSE";
-        case TOKEN_IF:     return "IF";
-        case TOKEN_INT:    return "INT";
-        case TOKEN_RETURN: return "RETURN";
-        case TOKEN_VOID:   return "VOID";
-        case TOKEN_WHILE:  return "WHILE";
-        case TOKEN_ID:     return "ID";
-        case TOKEN_NUM:    return "NUM";
-        case TOKEN_PLUS:   return "PLUS";
-        case TOKEN_MINUS:  return "MINUS";
-        case TOKEN_TIMES:  return "TIMES";
-        case TOKEN_OVER:   return "OVER";
-        case TOKEN_LT:     return "LT";
-        case TOKEN_LE:     return "LE";
-        case TOKEN_GT:     return "GT";
-        case TOKEN_GE:     return "GE";
-        case TOKEN_EQ:     return "EQ";
-        case TOKEN_NEQ:    return "NEQ";
-        case TOKEN_ASSIGN: return "ASSIGN";
-        case TOKEN_SEMI:   return "SEMI";
-        case TOKEN_COMMA:  return "COMMA";
-        case TOKEN_LPAREN: return "LPAREN";
-        case TOKEN_RPAREN: return "RPAREN";
-        case TOKEN_LBRACK: return "LBRACK";
-        case TOKEN_RBRACK: return "RBRACK";
-        case TOKEN_LBRACE: return "LBRACE";
-        case TOKEN_RBRACE: return "RBRACE";
+        case 0:            return "EOF";
+        case ELSE:         return "ELSE";
+        case IF:           return "IF";
+        case INT:          return "INT";
+        case RETURN:       return "RETURN";
+        case VOID:         return "VOID";
+        case WHILE:        return "WHILE";
+        case ID:           return "ID";
+        case NUM:          return "NUM";
+        case PLUS:         return "PLUS";
+        case MINUS:        return "MINUS";
+        case TIMES:        return "TIMES";
+        case OVER:         return "OVER";
+        case LT:           return "LT";
+        case LE:           return "LE";
+        case GT:           return "GT";
+        case GE:           return "GE";
+        case EQ:           return "EQ";
+        case NEQ:          return "NEQ";
+        case ASSIGN:       return "ASSIGN";
+        case SEMI:         return "SEMI";
+        case COMMA:        return "COMMA";
+        case LPAREN:       return "LPAREN";
+        case RPAREN:       return "RPAREN";
+        case LBRACK:       return "LBRACK";
+        case RBRACK:       return "RBRACK";
+        case LBRACE:       return "LBRACE";
+        case RBRACE:       return "RBRACE";
         default:         return "UNKNOWN";
     }
 }

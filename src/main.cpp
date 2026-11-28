@@ -1,6 +1,11 @@
 #include <iostream>
 #include <cstdio>
-#include "tokens.hpp"
+#include "ast.hpp"
+
+extern FILE* yyin;
+extern int yyparse();
+extern ASTNode* ast_root;
+extern bool syntax_has_error;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -16,13 +21,21 @@ int main(int argc, char* argv[]) {
 
     yyin = source;
 
-    int tok;
-    while ((tok = yylex()) != TOKEN_EOF) {
-        std::cout << "Linha " << yylineno
-                  << " | Token: " << token_name(tok)
-                  << " | Lexema: " << current_lexeme << "\n";
+    yyparse();
+    std::fclose(source);
+
+    if (syntax_has_error) {
+        std::cerr << "Compilacao encerrada devido a erros sintaticos.\n";
+        free_ast(ast_root);
+        return 1;
     }
 
-    std::fclose(source);
+    std::cout << "=== ARVORE SINTATICA ABSTRATA (AST) ===\n";
+    printTree(ast_root);
+
+    export_ast_dot(ast_root, "ast.dot");
+    std::cout << "\nArquivo 'ast.dot' gerado com sucesso.\n";
+
+    free_ast(ast_root);
     return 0;
 }

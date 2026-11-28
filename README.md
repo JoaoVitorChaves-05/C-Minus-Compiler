@@ -4,15 +4,15 @@ Projeto acadêmico de Compiladores da UNIFESP para implementação de um compila
 
 ## Estado atual
 
-Nesta primeira etapa, o projeto disponibiliza:
+O projeto já implementa:
 
-- Especificação léxica em Flex;
-- Enumeração e nomes dos tokens;
-- Ponto de entrada para execução do scanner;
-- Arquivos de teste válidos e com erro léxico;
+- Scanner em Flex, incluindo comentários de bloco e localização de erros léxicos;
+- Parser em Bison com recuperação de erros sintáticos;
+- Construção e impressão textual da AST, além da exportação opcional em Graphviz;
+- Resolução do `else` associado ao `if` mais próximo;
 - Build para Windows com `mingw32-make`.
 
-As etapas de parser, AST, tabela de símbolos, análise semântica e geração de código intermediário ainda serão implementadas.
+Ainda faltam a tabela de símbolos, a análise semântica e a geração de código intermediário.
 
 ## Estrutura
 
@@ -22,14 +22,20 @@ C-Minus-Compiler/
 |-- Makefile
 |-- README.md
 |-- include/
+|   |-- ast.hpp
 |   `-- tokens.hpp
 |-- src/
 |   |-- main.cpp
 |   |-- scanner.lx
-|   `-- parser.y
+|   |-- parser.y
+|   `-- ast.cpp
 |-- tests/
 |   |-- gcd.cm
-|   `-- erro_lexico.cm
+|   |-- erro_lexico.cm
+|   |-- erro_lexico_linha_comentario.cm
+|   |-- dangling_else.cm
+|   |-- erro_sintatico_recuperacao.cm
+|   `-- erro_sintatico_eof.cm
 `-- build/
 ```
 
@@ -71,17 +77,24 @@ Execute o compilador informando um arquivo-fonte C-:
 .\cmenos.exe .\tests\gcd.cm
 ```
 
-Exemplo de saída:
+Para verificar o parser e a associação de `else`:
 
-```text
-Linha 1 | Token: INT | Lexema: int
-Linha 1 | Token: ID | Lexema: gcd
+```powershell
+.\cmenos.exe .\tests\dangling_else.cm
 ```
 
 Para testar a detecção de erro léxico:
 
 ```powershell
 .\cmenos.exe .\tests\erro_lexico.cm
+.\cmenos.exe .\tests\erro_lexico_linha_comentario.cm
+```
+
+Para verificar a recuperação de erros sintáticos:
+
+```powershell
+.\cmenos.exe .\tests\erro_sintatico_recuperacao.cm
+.\cmenos.exe .\tests\erro_sintatico_eof.cm
 ```
 
 ## Tokens reconhecidos

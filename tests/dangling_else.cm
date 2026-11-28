@@ -1,0 +1,11 @@
+void main(void)
+{
+    int outer;
+    int inner;
+
+    if (outer)
+        if (inner)
+            outer = 1;
+        else
+            outer = 2;
+}
