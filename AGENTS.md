@@ -51,7 +51,7 @@ O compilador deve operar em pipeline sequencial e estruturar-se nos seguintes m�
 
 ```text
 C-Minus-Compiler/
-├── include/            # Cabeçalhos (.h) de AST, Tabela de Símbolos, Semântico e CodeGen
+├── include/            # Cabeçalhos (.h) de AST, Tabela de Símbolos, Semântico e GCI
 ├── src/
 │   ├── main.c          # Ponto de entrada, leitura do arquivo .cm e orquestração das fases
 │   ├── scanner.lx      # Especificação léxica (Flex 2.5.4)
@@ -59,7 +59,7 @@ C-Minus-Compiler/
 │   ├── ast.c           # Estruturas de nós da AST, impressão textual e/ou exportação .dot
 │   ├── symtab.c        # Tabela de Símbolos (hash table + pilha de escopos ou equivalente)
 │   ├── semantic.c      # Análise semântica sobre a AST
-│   └── codegen.c       # Geração de código intermediário em 3 endereços
+│   └── gci.c           # Geração de código intermediário em quádruplas
 ├── tests/              # Programas de teste em C- (casos válidos e casos de erro)
 ├── build/              # Arquivos intermediários gerados (.c/.h do Flex/Bison e objetos)
 ├── Makefile            # Script de compilação para mingw32-make

@@ -1,0 +1,23 @@
+int inc(int value) {
+    return value + 1;
+}
+
+int sum(int left, int right) {
+    return left + right;
+}
+
+void main(void) {
+    int values[2];
+    int i;
+
+    i = 0;
+    while (i < 2) {
+        values[i] = i;
+        i = inc(i);
+    }
+
+    if (values[0] == 0)
+        output(sum(values[0], inc(values[1])));
+    else
+        output(0);
+}
