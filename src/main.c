@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "ast.h"
+#include "gci.h"
 #include "semantic.h"
 #include "symtab.h"
 #include "tokens.h"
@@ -13,6 +14,7 @@ extern int syntax_has_error;
 int main(int argc, char **argv) {
     FILE *source;
     SymbolTable symbols;
+    GCI gci = GCI_INITIALIZER;
     int parse_result;
 
     if (argc < 2) {
@@ -58,6 +60,17 @@ int main(int argc, char **argv) {
 
     fputs("=== ARVORE SINTATICA ABSTRATA (AST) ===\n", stdout);
     print_tree(stdout, ast_root);
+
+    fputs("\n=== CODIGO INTERMEDIARIO (QUADRUPLAS) ===\n", stdout);
+    if (!generate_quads(ast_root, &gci)) {
+        fputs("Erro: nao foi possivel gerar o codigo intermediario.\n", stderr);
+        clear_quads(&gci);
+        symbol_table_destroy(&symbols);
+        free_ast(ast_root);
+        return EXIT_FAILURE;
+    }
+    print_quads(stdout, &gci);
+    clear_quads(&gci);
 
     if (!export_ast_dot(ast_root, "ast.dot")) {
         fputs("Erro ao gravar o arquivo 'ast.dot'.\n", stderr);

@@ -10,11 +10,12 @@ O projeto já implementa:
 - Parser em Bison com recuperação de erros sintáticos;
 - Construção e impressão textual da AST, além da exportação opcional em Graphviz;
 - Tabela de símbolos com escopos aninhados e análise semântica de declarações, usos, tipos, chamadas e retornos;
+- Geração de código intermediário em quádruplas para funções, expressões, chamadas, vetores e controle de fluxo;
 - Funções predefinidas `input()` e `output(int)`;
 - Resolução do `else` associado ao `if` mais próximo;
 - Build para Windows com `mingw32-make`.
 
-Ainda falta a geração de código intermediário.
+Ainda falta a tradução do código intermediário para instruções da Tiny Machine.
 
 ## Estrutura
 
@@ -27,6 +28,7 @@ C-Minus-Compiler/
 |   |-- ast.h
 |   |-- semantic.h
 |   |-- symtab.h
+|   |-- gci.h
 |   `-- tokens.h
 |-- src/
 |   |-- main.c
@@ -34,7 +36,8 @@ C-Minus-Compiler/
 |   |-- parser.y
 |   |-- ast.c
 |   |-- semantic.c
-|   `-- symtab.c
+|   |-- symtab.c
+|   `-- gci.c
 |-- tests/
 |   |-- gcd.cm
 |   |-- erro_lexico.cm
@@ -44,7 +47,8 @@ C-Minus-Compiler/
 |   |-- erro_sintatico_eof.cm
 |   |-- escopos_semanticos.cm
 |   |-- erro_semantico.cm
-|   `-- erro_semantico_main.cm
+|   |-- erro_semantico_main.cm
+|   `-- gci_arrays_calls.cm
 `-- build/
 ```
 
